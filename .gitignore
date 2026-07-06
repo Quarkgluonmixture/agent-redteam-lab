@@ -1,0 +1,31 @@
+# --- deps / build ---
+node_modules/
+.venv/
+venv/
+dist/
+build/
+*.egg-info/
+__pycache__/
+.pytest_cache/
+.tanstack/
+.output/
+.sst/
+
+# --- secrets / env ---
+.env
+.env.*
+!.env.example
+
+# --- run artifacts / scratch (never commit traces) ---
+artifacts/
+tmp/
+out/
+*.report.json
+
+# --- PRIVATE planning material: literal upstream identifiers used to SEED the
+#     public-safety scanner. This must NEVER be committed to the public repo. ---
+docs/_private/
+*.local.txt
+
+# --- OS ---
+.DS_Store
