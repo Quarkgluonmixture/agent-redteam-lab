@@ -62,7 +62,7 @@ Candidate row (validated by `packages/core.validate` / mirrored `kaggle/utils.va
 |---|---|---|
 | `kaggle/` | C | scaffold (placeholder bank) |
 | `packages/core` | A/B | **candidate schema (Phase 3): `candidate.py` + `schema.json` + `candidate.ts`** |
-| `packages/plugin-sandbox` | B | synthetic tools + scenarios (stub) |
+| `packages/plugin_sandbox` | B | **synthetic tools + predicate evaluator + 14-scenario catalog (Phase 4)** |
 | `packages/strategies` | B | candidate generators (stub) |
 | `packages/grader` | A | synthetic judge calibration (stub) |
 | `packages/risk` | A | FP/FN + cost model (stub) |

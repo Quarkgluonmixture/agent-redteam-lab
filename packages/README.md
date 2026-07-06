@@ -7,8 +7,8 @@ the redaction + public-safety gate.
 
 | Package | Responsibility |
 |---|---|
-| `core` | shared candidate schema + verified-contract constants |
-| `plugin-sandbox` | synthetic tools + attack scenarios over the 10-tool surface |
+| `core` | shared candidate schema + verified-contract constants **(Phase 3 ✓)** |
+| `plugin_sandbox` | synthetic tools + predicate evaluator + scenario catalog over the 10-tool surface **(Phase 4 ✓)** |
 | `strategies` | candidate generators (the strategy families in THREAT_MODEL.md) |
 | `grader` | synthetic LLM-rubric calibration (no private examples) |
 | `risk` | FP/FN risk map + cost model |
