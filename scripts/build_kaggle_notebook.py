@@ -1,0 +1,92 @@
+#!/usr/bin/env python3
+"""Build the Kaggle submission NOTEBOOK from the kaggle/ adapter files.
+
+This is a Code Competition: the submission is a notebook that writes `attack.py`
+(and its siblings) to `/kaggle/working/`; the hosted evaluator then loads and runs it.
+We embed the four kaggle/ files (base64, so any quoting is safe) into a single write
+cell — the notebook is fully reproducible from the source files (single source of truth).
+
+Usage:
+    python scripts/build_kaggle_notebook.py [--out dist/agent_redteam_submission.ipynb]
+"""
+
+from __future__ import annotations
+
+import argparse
+import base64
+import json
+import os
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+KAGGLE = os.path.join(ROOT, "kaggle")
+FILES = ("attack.py", "portfolio_selector.py", "utils.py", "candidate_bank.jsonl")
+DEFAULT_OUT = os.path.join(ROOT, "dist", "agent_redteam_submission.ipynb")
+
+MARKDOWN = [
+    "# agent-redteam-lab — Kaggle submission\n",
+    "\n",
+    "Writes `attack.py` + siblings to `/kaggle/working/`; the evaluator loads and runs it.\n",
+    "Only `userMessages` is scored (replayed); all other candidate fields are internal.\n",
+    "Regenerate with `scripts/build_kaggle_notebook.py` — do not hand-edit.\n",
+]
+
+
+def _write_cell() -> list[str]:
+    payload = {name: base64.b64encode(
+        open(os.path.join(KAGGLE, name), "rb").read()).decode("ascii") for name in FILES}
+    # emit deterministic, human-diffable source lines
+    lines = [
+        "import base64, pathlib\n",
+        "\n",
+        "FILES = {\n",
+    ]
+    for name in FILES:
+        lines.append(f"    {name!r}: {payload[name]!r},\n")
+    lines += [
+        "}\n",
+        "out = pathlib.Path('/kaggle/working')\n",
+        "out.mkdir(parents=True, exist_ok=True)\n",
+        "for _name, _b64 in FILES.items():\n",
+        "    (out / _name).write_bytes(base64.b64decode(_b64))\n",
+        "    print('wrote', out / _name)\n",
+    ]
+    return lines
+
+
+def build_notebook() -> dict:
+    return {
+        "cells": [
+            {"cell_type": "markdown", "metadata": {}, "source": MARKDOWN},
+            {"cell_type": "code", "metadata": {}, "execution_count": None,
+             "outputs": [], "source": _write_cell()},
+        ],
+        "metadata": {
+            "kernelspec": {"name": "python3", "display_name": "Python 3", "language": "python"},
+            "language_info": {"name": "python"},
+        },
+        "nbformat": 4,
+        "nbformat_minor": 5,
+    }
+
+
+def main(argv: list[str] | None = None) -> int:
+    ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument("--out", default=DEFAULT_OUT)
+    args = ap.parse_args(argv)
+
+    for name in FILES:
+        if not os.path.exists(os.path.join(KAGGLE, name)):
+            print(f"build_kaggle_notebook: missing kaggle/{name}")
+            return 1
+
+    nb = build_notebook()
+    os.makedirs(os.path.dirname(os.path.abspath(args.out)), exist_ok=True)
+    with open(args.out, "w", encoding="utf-8") as fh:
+        json.dump(nb, fh, indent=1)
+    print(f"build_kaggle_notebook: wrote {args.out} ({len(FILES)} files embedded). "
+          "Upload it as a Kaggle notebook.")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

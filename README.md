@@ -53,8 +53,9 @@ aicomp validate redteam attack.py       # or: bash scripts/smoke_kaggle.sh
 # 3. 60s local smoke eval (deterministic target, Kaggle-parity env)
 bash scripts/eval_kaggle_60s.sh
 
-# 4. package the submission
-bash scripts/package_kaggle_submission.sh   # -> dist/kaggle_submission/
+# 4. build the Kaggle submission notebook (writes attack.py to /kaggle/working/)
+python scripts/build_kaggle_notebook.py     # -> dist/agent_redteam_submission.ipynb
+bash scripts/package_kaggle_submission.sh   # (optional) plain folder form -> dist/kaggle_submission/
 ```
 
 ## Layout

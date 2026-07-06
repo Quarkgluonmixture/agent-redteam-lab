@@ -59,6 +59,13 @@ def test_run_accepts_env_only_call():
     assert isinstance(candidates, list)
 
 
+def test_run_handles_tiny_budget():
+    """A near-zero budget (deadline math goes negative) must still return cleanly."""
+    mod = _load_root_attack()
+    candidates = mod.AttackAlgorithm().run(object(), AttackRunConfig(time_budget_s=0.5))
+    assert isinstance(candidates, list) and len(candidates) <= MAX_FINDINGS
+
+
 def test_shipped_candidates_are_sandbox_scoped():
     """Phase-5: real attacks now, but every shipped candidate must stay inside the
     authorised toy sandbox — no HTTP host outside *.invalid may appear."""

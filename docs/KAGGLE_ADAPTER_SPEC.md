@@ -91,11 +91,20 @@ internal. Build/validate banks with `scripts/export_candidate_bank.py` /
 - Root `attack.py` defines a **literal** `class AttackAlgorithm(AttackAlgorithmBase)` with a `run`
   method that delegates to `kaggle/attack.py` (a bare re-export fails the AST structure check) — only so
   `aicomp validate redteam attack.py` and the contract test work from the repo root.
-- `scripts/package_kaggle_submission.sh` writes `dist/kaggle_submission/` with `attack.py` (from
-  `kaggle/attack.py`) + the three siblings — nothing else.
-- **For the real submission**, the Kaggle **notebook** writes these four files to `/kaggle/working/`
-  (with `attack.py` = the `kaggle/attack.py` body) and lets the evaluator run it. The notebook itself
-  needs no internet; everything ships in the four files.
+- **Real submission = a NOTEBOOK.** `scripts/build_kaggle_notebook.py` embeds the four `kaggle/` files
+  (base64) into `dist/agent_redteam_submission.ipynb`; its single write-cell drops them into
+  `/kaggle/working/` and the hosted evaluator loads `attack.py`. Reproducible from source — never
+  hand-edit the `.ipynb`. Internet-off safe (everything ships in the four files).
+- `scripts/package_kaggle_submission.sh` writes the same four files as a plain `dist/kaggle_submission/`
+  folder (for local inspection / non-notebook flows) — nothing else.
+
+## Budget-aware run
+
+`run()` stamps `time.monotonic()` at entry, reads the budget via `utils.budget_of(config)` (accepts
+`time_budget_s` **or** `budget_s`), and computes a `deadline = start + budget - BUDGET_RETURN_BUFFER_S`.
+The static-bank path is instant so it never nears the deadline, but the guard is where Phase-9 online
+`env` exploration will loop (`while time.monotonic() < deadline`). Overrunning attack-generation fails
+the whole submission, so returning early with a buffer is mandatory.
 
 ## Scoring hook (see EVAL_PROTOCOL.md)
 

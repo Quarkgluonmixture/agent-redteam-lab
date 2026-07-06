@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import os
 import sys
+import time
 from typing import Any, Mapping
 
 # Make sibling modules importable whether we run from kaggle/ or a packaged root.
@@ -45,7 +46,12 @@ class AttackAlgorithm(AttackAlgorithmBase):
         # but the competition prose shows run(env). Defaulting to None accepts both shapes.
         # The real per-model attack-generation budget (9000 s) arrives on `config`; the
         # host FAQ names it `budget_s`, the SDK dataclass uses `time_budget_s` — accept both.
+        start = time.monotonic()
         budget = utils.budget_of(config)
+        # Return BEFORE the phase deadline: overrunning attack-generation fails the whole
+        # submission (host FAQ). Leave a buffer for the harness to collect + start replay.
+        deadline = start + max(0.0, budget - utils.BUDGET_RETURN_BUFFER_S)
+
         rows = utils.load_candidate_bank(_BANK_PATH)
         # NOTE: cap ships FAR below the 2000 hard limit — replay time (~6x local, and it
         # scales with candidate count) is the real constraint; oversized portfolios time
@@ -56,4 +62,9 @@ class AttackAlgorithm(AttackAlgorithmBase):
             budget_s=budget,
             max_candidates=utils.DEFAULT_MAX_SHIPPED_CANDIDATES,
         )
+
+        # Online-generation hook (Phase 9): while time.monotonic() < deadline, probe `env`
+        # to discover/branch more candidates. The static bank path is instant, so we never
+        # approach the deadline today — but the guard keeps the contract honest.
+        _ = deadline  # reserved; no timed exploration in the static-bank scaffold
         return utils.to_attack_candidates(selected)
