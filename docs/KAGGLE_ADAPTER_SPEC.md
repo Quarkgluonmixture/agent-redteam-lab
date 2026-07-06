@@ -48,7 +48,8 @@ candidates times out and scores **nothing**. Ship a **small, diverse** portfolio
 
 ## Pipeline, targets & guardrails
 
-- **Targets:** `gpt_oss` and `gemma` (Gemma 4), evaluated sequentially on T4 GPU (llama.cpp GGUF).
+- **Targets:** `gpt_oss` and `gemma` (Gemma 4), evaluated sequentially on T4 GPU (llama.cpp GGUF) —
+  **on Kaggle's gateway during the scored rerun, not in the submission notebook (which is CPU-only)**.
   `--agent deterministic` is a **local dev** target only (no key, fast).
 - **Per model, two stages:** (1) `run()` explores once against the **public `OptimalGuardrail`**
   (permissive; source in SDK) ≤ 9,000 s → returns candidates; (2) those exact chains are **statically
@@ -91,10 +92,22 @@ internal. Build/validate banks with `scripts/export_candidate_bank.py` /
 - Root `attack.py` defines a **literal** `class AttackAlgorithm(AttackAlgorithmBase)` with a `run`
   method that delegates to `kaggle/attack.py` (a bare re-export fails the AST structure check) — only so
   `aicomp validate redteam attack.py` and the contract test work from the repo root.
-- **Real submission = a NOTEBOOK.** `scripts/build_kaggle_notebook.py` embeds the four `kaggle/` files
-  (base64) into `dist/agent_redteam_submission.ipynb`; its single write-cell drops them into
-  `/kaggle/working/` and the hosted evaluator loads `attack.py`. Reproducible from source — never
-  hand-edit the `.ipynb`. Internet-off safe (everything ships in the four files).
+- **Real submission = a NOTEBOOK** (⭐ pattern verified 2026-07-06 by an *accepted* submission; mirrors
+  a known-working competitor kernel). `scripts/build_kaggle_notebook.py` emits `dist/agent_redteam_submission.ipynb`
+  + a push-ready `dist/submission/` (notebook + `kernel-metadata.json`). **3 code cells:** (1) put the
+  competition data on `sys.path`; (2) base64-embed the four `kaggle/` files → write them to
+  `/kaggle/working/`; (3) **write a placeholder `submission.csv`** (`Id,Score` + the four rows
+  `gpt_oss_public`/`gpt_oss_private`/`gemma_public`/`gemma_private` = `0.0`) **then
+  `JEDAttackInferenceServer().serve()`**. On a normal Save & Run `serve()` starts the server and returns
+  (the placeholder csv is the *required output file*); during the **scored rerun** `serve()` blocks and
+  Kaggle's gateway loads `/kaggle/working/attack.py`, drives it against the real `gpt_oss`/`gemma`, and
+  **overwrites** `submission.csv`. ⭐ **kernel-metadata is CPU-only:** `enable_gpu: false`,
+  `machine_shape: "None"`, standard `gcr.io/kaggle-images/python` image, `model_sources: []`,
+  `enable_internet: false`, `competition_sources: [the comp]`. (Our notebook never runs the target models —
+  that was the v1–v5 mistake: BYOD-GPU image + `run_local_gateway()` tried to download the GGUF models
+  offline and ERRORed.) **Submit** (CLI `-k -v` returns an opaque 400 → use the Python API):
+  `api.competition_submit_code(file_name="submission.csv", message=…, competition=…, kernel=…, kernel_version=N)`.
+  Reproducible from source — never hand-edit the `.ipynb`. Internet-off safe (everything ships in the four files).
 - `scripts/package_kaggle_submission.sh` writes the same four files as a plain `dist/kaggle_submission/`
   folder (for local inspection / non-notebook flows) — nothing else.
 

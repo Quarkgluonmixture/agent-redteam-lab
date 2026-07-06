@@ -216,8 +216,10 @@ Auto-selection order: `gpt_oss → openai (if key) → deterministic`. → match
 ## 5. Kaggle-side rules  **[KAGGLE — verified from Overview + Rules pages, 2026-07-06]**
 
 - **Type:** Featured **Code Competition** — submit a **Kaggle notebook** that writes `attack.py` to
-  `/kaggle/working/`; the hosted evaluator loads & runs it. **GPU notebook, internet DISABLED**,
-  ≤ 15 h runtime. Publicly-available external data/models allowed.
+  `/kaggle/working/` and serves the inference server; the hosted evaluator loads & runs it. ⭐ **The
+  submission notebook is CPU-only, internet DISABLED** (verified 2026-07-06 by an accepted submission —
+  see `KAGGLE_ADAPTER_SPEC` "Real submission"). The target models run on **Kaggle's own gateway (T4 GPU)**
+  during the scored rerun, **not** in our notebook. ≤ 15 h runtime. Publicly-available external data/models allowed.
 - **Output:** the run produces `submission.csv` with **four rows** — `gpt_oss_public`,
   `gpt_oss_private`, `gemma_public`, `gemma_private` (score per model × guardrail).
 - **Timeline (UTC):** Start **2026-06-11** · Entry & Team-Merger **2026-08-25** · **Final Submission
