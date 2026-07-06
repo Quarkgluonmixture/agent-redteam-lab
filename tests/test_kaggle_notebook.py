@@ -1,4 +1,4 @@
-"""The Kaggle submission notebook is valid and embeds the adapter files verbatim."""
+"""The Kaggle submission notebook is valid, code-comp-shaped, and embeds files verbatim."""
 
 from __future__ import annotations
 
@@ -8,23 +8,32 @@ import os
 import build_kaggle_notebook as bkn
 
 
+def _all_code(nb) -> str:
+    return "\n".join("".join(c["source"]) for c in nb["cells"] if c["cell_type"] == "code")
+
+
 def test_notebook_structure():
     nb = bkn.build_notebook()
     assert nb["nbformat"] == 4
     kinds = [c["cell_type"] for c in nb["cells"]]
-    assert kinds == ["markdown", "code"]
+    assert kinds == ["markdown", "code", "code", "code"]  # setup / write / serve
+
+
+def test_setup_and_serve_cells_present():
+    code = _all_code(bkn.build_notebook())
+    assert "/kaggle/input/**/kaggle_evaluation" in code     # setup adds competition data
+    assert "JEDAttackInferenceServer().serve()" in code     # serve the gateway
+    assert bkn.GATEWAY_MODULE in code
 
 
 def test_code_cell_writes_to_kaggle_working():
-    nb = bkn.build_notebook()
-    code = "".join(nb["cells"][1]["source"])
+    code = _all_code(bkn.build_notebook())
     assert "/kaggle/working" in code
     assert "write_bytes" in code
 
 
 def test_all_adapter_files_embedded_verbatim():
-    nb = bkn.build_notebook()
-    code = "".join(nb["cells"][1]["source"])
+    code = _all_code(bkn.build_notebook())
     for name in bkn.FILES:
         raw = open(os.path.join(bkn.KAGGLE, name), "rb").read()
         b64 = base64.b64encode(raw).decode("ascii")
@@ -42,8 +51,6 @@ def test_kernel_metadata_is_code_comp_ready():
 
 def test_embedded_attack_py_roundtrips():
     """Decoding an embedded payload must reproduce the source file byte-for-byte."""
-    nb = bkn.build_notebook()
-    code = "".join(nb["cells"][1]["source"])
+    code = _all_code(bkn.build_notebook())
     src = open(os.path.join(bkn.KAGGLE, "attack.py"), "rb").read()
-    assert base64.b64decode(base64.b64encode(src)).decode("utf-8").startswith('"""Kaggle attack')
     assert base64.b64encode(src).decode("ascii") in code

@@ -1,26 +1,35 @@
-"""Kaggle attack submission entrypoint (thin adapter).
+"""Kaggle attack submission entrypoint (online-probing adapter).
 
-Verified contract (aicomp-sdk 3.1.2 — see docs/KAGGLE_ADAPTER_SPEC.md):
-  * class ``AttackAlgorithm(AttackAlgorithmBase)``
-  * ``run(self, env, config: AttackRunConfig) -> list[AttackCandidate]``
-  * candidates are built with ``AttackCandidate.from_messages(user_messages)``
-  * the evaluator REPLAYS the message chains; attacker metadata is never trusted.
+Verified mechanic (official getting-started notebook + aicomp-sdk 3.1.2): the hosted
+`JEDAttackInferenceServer` loads this `attack.py` and calls `AttackAlgorithm.run(env,
+config)`. The scoring-worthy pattern is to PROBE the env online — replay each seed
+message-chain (`env.reset()` → `env.interact(msg)` …), check `eval_predicates(
+env.export_trace_dict())`, and return only chains that actually fired (so the
+evaluator's re-replay confirms them). Seeds + ordering come from our candidate bank +
+portfolio selector; the env's own guardrail is applied during `interact`, so a firing
+chain has already evaded it.
 
-Phase-2 scaffold: this loads harmless placeholder candidates from
-``candidate_bank.jsonl`` and returns them through the portfolio selector. It
-contains NO real attack logic yet (Phase 5). It imports only the SDK + two
-sibling files, so it works both from ``kaggle/`` and when packaged to a
-submission root (see scripts/package_kaggle_submission.sh).
+Falls back to returning the (unprobed) selected bank when `env` can't be probed
+(e.g. local `aicomp validate` / unit tests with a stub env).
 """
 
 from __future__ import annotations
 
+import glob
 import os
 import sys
 import time
+from pathlib import Path
 from typing import Any, Mapping
 
-# Make sibling modules importable whether we run from kaggle/ or a packaged root.
+# Competition data (kaggle_evaluation/ + aicomp_sdk/) → import path (Kaggle scoring context).
+for _cand in glob.glob("/kaggle/input/**/kaggle_evaluation", recursive=True):
+    _root = str(Path(_cand).parent)
+    if _root not in sys.path:
+        sys.path.insert(0, _root)
+    break
+
+# Sibling modules resolve whether we run from kaggle/ or /kaggle/working.
 _HERE = os.path.dirname(os.path.abspath(__file__))
 if _HERE not in sys.path:
     sys.path.insert(0, _HERE)
@@ -31,40 +40,69 @@ import portfolio_selector  # noqa: E402
 import utils  # noqa: E402
 
 _BANK_PATH = os.path.join(_HERE, "candidate_bank.jsonl")
+_PROBE_MARGIN_S = 180.0  # stop probing this long before the deadline (leave replay buffer)
+
+
+def _eval_predicates():
+    """Lazy import — present in the competition env, optional locally."""
+    try:
+        from aicomp_sdk.core.predicates import eval_predicates
+        return eval_predicates
+    except Exception:
+        return None
 
 
 class AttackAlgorithm(AttackAlgorithmBase):
-    """Bank-backed attack submission (scaffold)."""
+    """Online-probing attack seeded by the candidate bank."""
 
     def __init__(self, config: Mapping[str, Any] | None = None) -> None:
         super().__init__(config)
-        # ARL_MODE selects the portfolio mode without editing code (public_lb default).
         self.mode = (self.config.get("mode") or os.environ.get("ARL_MODE") or "public_lb")
 
-    def run(self, env: Any, config: AttackRunConfig | None = None) -> list[AttackCandidate]:
-        # `config` is optional: the installed base class declares run(self, env, config),
-        # but the competition prose shows run(env). Defaulting to None accepts both shapes.
-        # The real per-model attack-generation budget (9000 s) arrives on `config`; the
-        # host FAQ names it `budget_s`, the SDK dataclass uses `time_budget_s` — accept both.
-        start = time.monotonic()
-        budget = utils.budget_of(config)
-        # Return BEFORE the phase deadline: overrunning attack-generation fails the whole
-        # submission (host FAQ). Leave a buffer for the harness to collect + start replay.
-        deadline = start + max(0.0, budget - utils.BUDGET_RETURN_BUFFER_S)
-
+    def _seed_chains(self, budget: float) -> list[list[str]]:
         rows = utils.load_candidate_bank(_BANK_PATH)
-        # NOTE: cap ships FAR below the 2000 hard limit — replay time (~6x local, and it
-        # scales with candidate count) is the real constraint; oversized portfolios time
-        # out the replay phase and score nothing. See docs/EVAL_PROTOCOL.md.
         selected = portfolio_selector.select(
-            rows,
-            mode=self.mode,
-            budget_s=budget,
+            rows, mode=self.mode, budget_s=budget,
             max_candidates=utils.DEFAULT_MAX_SHIPPED_CANDIDATES,
         )
+        return [
+            [str(m)[: utils.MAX_CHARS_PER_MESSAGE] for m in r.get("userMessages", [])][
+                : utils.MAX_USER_MESSAGES_PER_FINDING
+            ]
+            for r in selected
+        ]
 
-        # Online-generation hook (Phase 9): while time.monotonic() < deadline, probe `env`
-        # to discover/branch more candidates. The static bank path is instant, so we never
-        # approach the deadline today — but the guard keeps the contract honest.
-        _ = deadline  # reserved; no timed exploration in the static-bank scaffold
-        return utils.to_attack_candidates(selected)
+    def run(self, env: Any, config: AttackRunConfig | None = None) -> list[AttackCandidate]:
+        budget = utils.budget_of(config)
+        seeds = self._seed_chains(budget)
+        eval_predicates = _eval_predicates()
+        probe = (
+            eval_predicates is not None
+            and hasattr(env, "interact")
+            and hasattr(env, "reset")
+            and hasattr(env, "export_trace_dict")
+        )
+        if not probe:
+            # Local / no-env context: return the selected bank unprobed.
+            return utils.to_attack_candidates([{"userMessages": c} for c in seeds])
+
+        # Online probing: keep only chains that actually fire a predicate.
+        start = time.monotonic()
+        margin = min(_PROBE_MARGIN_S, max(5.0, budget * 0.1))  # scale buffer to budget
+        findings: list[AttackCandidate] = []
+        for chain in seeds:
+            if not chain:
+                continue
+            if budget - (time.monotonic() - start) < margin:
+                break
+            try:
+                env.reset()
+                for msg in chain:
+                    env.interact(msg)
+                if eval_predicates(env.export_trace_dict()):
+                    findings.append(AttackCandidate.from_messages(chain))
+            except Exception:
+                continue  # a bad chain must never abort the whole run
+            if len(findings) >= utils.MAX_FINDINGS_PER_RUN:
+                break
+        return findings
