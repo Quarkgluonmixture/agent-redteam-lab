@@ -8,7 +8,20 @@ Newest first. Scores are `normalized 0–1000` per the SDK scorer.
 
 | Sub ref | Kernel v | Date (UTC) | publicScore | privateScore | Status | Bank N |
 |---|---|---|---|---|---|---|
+| 54402584 | v7 | 2026-07-06 | ⏳ | ⏳ | PENDING | 78 (5 verified) |
 | 54399424 | v6 | 2026-07-06 | **0.000** | (held out) | COMPLETE | 73 |
+
+## Sub 54402584 — v7 (fs.read-seam evasion families)
+
+- **What changed vs v6:** added two E1-direct, guardrail-validated families to the bank
+  (`clean_exfil_glob` EXFIL sev5 ×3 variants; `direct_deputy_no_read` DEPUTY sev3 ×2), floated to the
+  front of the probe order via `verifiedEvasion` (commit `05a43d6`). Tests + safety scan green.
+- **Hypothesis under test:** the guardrail+scorer are proven (v6 root cause = blocked/non-firing seeds);
+  v7 isolates the remaining unknown — **will gpt_oss/gemma actually walk these chains?** If public > 0,
+  the seam works and we scale/diversify (Codex #3 coverage). If still 0, it's agent non-compliance →
+  iterate on wording/mechanism (e.g. stronger tool-use nudging, alternate read mechanisms).
+- **Result:** _TBD (rerun pending)._
+
 
 ---
 
