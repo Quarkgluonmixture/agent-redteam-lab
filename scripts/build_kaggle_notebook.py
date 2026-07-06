@@ -27,18 +27,27 @@ DEFAULT_KERNEL_ID = "quarkgluonmixture/agent-redteam-lab-attack"
 NOTEBOOK_FILENAME = "agent_redteam_submission.ipynb"
 # Competition-specific evaluation gateway (from the official getting-started notebook).
 GATEWAY_MODULE = "kaggle_evaluation.jed_attack_134815.jed_attack_inference_server"
-# Competition BYOD docker image with the gpt_oss/gemma GGUF models pre-baked — REQUIRED so
-# run_local_gateway() works offline (default image lacks them → HF download fails, internet is off).
-# Pinned from the official getting-started notebook's kernel-metadata.
-DOCKER_IMAGE = ("gcr.io/kaggle-private-byod/python@sha256:"
-                "57e612b484cf3df5026ee4dcc3cb176974b22b2bc0937fb1e16132a8be4cb13c")
+# The four leaderboard rows the scored rerun fills in (2 models x 2 guardrails).
+SUBMISSION_ROWS = ("gpt_oss_public", "gpt_oss_private", "gemma_public", "gemma_private")
+# Standard CPU Kaggle image (NOT the BYOD/GPU image). The submission notebook never runs the
+# target models — during the scored rerun Kaggle's OWN gateway drives gpt_oss/gemma and overwrites
+# submission.csv. So no GPU, no models, no internet needed on our side. Pinned to the image a
+# verified working submission used (matches the top-voted starter's env).
+DOCKER_IMAGE = ("gcr.io/kaggle-images/python@sha256:"
+                "dafd4ce5668bbf1ad422e4c109e0f18c9623c3a7c7f48b0235f13142755c40b9")
 
 MARKDOWN = [
     "# agent-redteam-lab — Kaggle submission\n",
     "\n",
     "Code-competition submission. Three cells: (1) put the competition data on the path,\n",
-    "(2) write `attack.py` + siblings to `/kaggle/working/`, (3) serve the evaluation\n",
-    "gateway. Real scoring happens during Kaggle's competition rerun.\n",
+    "(2) write `attack.py` + siblings to `/kaggle/working/`, (3) write a placeholder\n",
+    "`submission.csv` and start the inference server.\n",
+    "\n",
+    "On a normal Save & Run, `serve()` just starts the server and returns — the placeholder\n",
+    "`submission.csv` is the required output file. During Kaggle's scored rerun, `serve()`\n",
+    "blocks and Kaggle's gateway connects, loads `attack.py`, drives it against the real\n",
+    "`gpt_oss`/`gemma` targets, and **overwrites** `submission.csv` with the real scores.\n",
+    "This notebook never runs the target models itself (no GPU / no internet needed).\n",
     "Regenerate with `scripts/build_kaggle_notebook.py` — do not hand-edit.\n",
 ]
 
@@ -57,17 +66,19 @@ SETUP_CELL = [
 ]
 
 SERVE_CELL = [
-    "# During the hidden rerun (KAGGLE_IS_COMPETITION_RERUN set), serve() connects to the\n",
-    "# scorer's gateway. On a normal run we must drive the gateway OURSELVES via\n",
-    "# run_local_gateway(), which runs the attack against the default fixtures and writes\n",
-    "# submission.csv — the output file a submittable version must produce.\n",
-    "import os\n",
+    "# 1) Placeholder submission.csv so the committed version carries the required output file.\n",
+    "#    Kaggle's gateway OVERWRITES it with real scores during the scored rerun.\n",
+    "from pathlib import Path\n",
+    f"_rows = {list(SUBMISSION_ROWS)!r}\n",
+    "_csv = 'Id,Score\\n' + ''.join(f'{r},0.0\\n' for r in _rows)\n",
+    "Path('/kaggle/working').mkdir(parents=True, exist_ok=True)\n",
+    "(Path('/kaggle/working') / 'submission.csv').write_text(_csv)\n",
+    "print('wrote placeholder submission.csv')\n",
+    "# 2) Start the inference server. On a normal run serve() starts the server and returns;\n",
+    "#    during the scored rerun it blocks and Kaggle's gateway drives attack.py against the\n",
+    "#    real gpt_oss/gemma targets (no models run here).\n",
     f"import {GATEWAY_MODULE} as _srv\n",
-    "_server = _srv.JEDAttackInferenceServer()\n",
-    "if os.getenv('KAGGLE_IS_COMPETITION_RERUN'):\n",
-    "    _server.serve()\n",
-    "else:\n",
-    "    _server.run_local_gateway()\n",
+    "_srv.JEDAttackInferenceServer().serve()\n",
 ]
 
 
@@ -116,7 +127,12 @@ def build_notebook() -> dict:
 
 
 def kernel_metadata(kernel_id: str) -> dict:
-    """Kaggle `kernels push` spec: GPU on, internet OFF, competition data attached."""
+    """Kaggle `kernels push` spec: CPU only, internet OFF, competition data attached.
+
+    No GPU / no models: the notebook only serves the inference server. The target models
+    (gpt_oss/gemma) are run by Kaggle's gateway during the scored rerun, not here. Mirrors
+    a verified working submission's metadata (top-voted starter uses the same env).
+    """
     return {
         "id": kernel_id,
         "title": kernel_id.split("/")[-1],
@@ -124,13 +140,15 @@ def kernel_metadata(kernel_id: str) -> dict:
         "language": "python",
         "kernel_type": "notebook",
         "is_private": True,
-        "enable_gpu": True,
-        "machine_shape": "NvidiaTeslaT4",  # comp requires T4 (P100 is rejected at submit)
-        "docker_image": DOCKER_IMAGE,      # models pre-baked → offline run works
-        "enable_internet": False,    # code-competition requirement
+        "enable_gpu": False,          # models run on Kaggle's side during the rerun, not here
+        "enable_tpu": False,
+        "machine_shape": "None",      # CPU notebook (T4/P100 not needed and P100 is rejected)
+        "docker_image": DOCKER_IMAGE,  # standard CPU image
+        "enable_internet": False,     # code-competition requirement
         "competition_sources": [COMPETITION],  # attaches aicomp_sdk + fixtures + evaluator
         "dataset_sources": [],
         "kernel_sources": [],
+        "model_sources": [],
     }
 
 
@@ -159,7 +177,7 @@ def main(argv: list[str] | None = None) -> int:
         json.dump(kernel_metadata(args.kernel_id), fh, indent=1)
 
     print(f"build_kaggle_notebook: wrote {args.out}")
-    print(f"  push-ready folder: {sub}/  (notebook + kernel-metadata.json, GPU on / internet off)")
+    print(f"  push-ready folder: {sub}/  (notebook + kernel-metadata.json, CPU / internet off)")
     print("  next (you, needs Kaggle API token):")
     print(f"    kaggle kernels push -p {sub}")
     print(f"    kaggle competitions submit -c {COMPETITION} "

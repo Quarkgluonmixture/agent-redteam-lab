@@ -23,9 +23,17 @@ def test_setup_and_serve_cells_present():
     code = _all_code(bkn.build_notebook())
     assert "/kaggle/input/**/kaggle_evaluation" in code     # setup adds competition data
     assert bkn.GATEWAY_MODULE in code
-    assert ".serve()" in code                                # rerun path
-    assert "run_local_gateway()" in code                     # local path -> writes submission.csv
-    assert "KAGGLE_IS_COMPETITION_RERUN" in code
+    assert ".serve()" in code                                # serve() handles both normal + rerun
+    assert "run_local_gateway" not in code                   # we never run models locally
+
+
+def test_placeholder_submission_written_before_serve():
+    """A submittable version must output submission.csv; the rerun overwrites it."""
+    code = _all_code(bkn.build_notebook())
+    assert "submission.csv" in code
+    assert "Id,Score" in code
+    for row in bkn.SUBMISSION_ROWS:                          # the 4 leaderboard rows
+        assert row in code
 
 
 def test_code_cell_writes_to_kaggle_working():
@@ -44,9 +52,9 @@ def test_all_adapter_files_embedded_verbatim():
 
 def test_kernel_metadata_is_code_comp_ready():
     md = bkn.kernel_metadata("quarkgluonmixture/agent-redteam-lab-attack")
-    assert md["enable_gpu"] is True            # gpt_oss/gemma need the T4
-    assert md["machine_shape"] == "NvidiaTeslaT4"  # comp rejects P100
-    assert md["docker_image"] == bkn.DOCKER_IMAGE  # models pre-baked for offline run
+    assert md["enable_gpu"] is False           # models run on Kaggle's side during the rerun
+    assert md["machine_shape"] == "None"       # CPU notebook
+    assert md["docker_image"] == bkn.DOCKER_IMAGE  # standard CPU image
     assert md["enable_internet"] is False      # code-competition requirement
     assert bkn.COMPETITION in md["competition_sources"]
     assert md["code_file"] == bkn.NOTEBOOK_FILENAME
