@@ -31,6 +31,15 @@ def test_all_adapter_files_embedded_verbatim():
         assert b64 in code, f"{name} not embedded verbatim"
 
 
+def test_kernel_metadata_is_code_comp_ready():
+    md = bkn.kernel_metadata("quarkgluonmixture/agent-redteam-lab-attack")
+    assert md["enable_gpu"] is True            # gpt_oss/gemma need the T4
+    assert md["enable_internet"] is False      # code-competition requirement
+    assert bkn.COMPETITION in md["competition_sources"]
+    assert md["code_file"] == bkn.NOTEBOOK_FILENAME
+    assert md["id"].startswith("quarkgluonmixture/")
+
+
 def test_embedded_attack_py_roundtrips():
     """Decoding an embedded payload must reproduce the source file byte-for-byte."""
     nb = bkn.build_notebook()

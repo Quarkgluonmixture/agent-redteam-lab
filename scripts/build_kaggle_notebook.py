@@ -22,6 +22,10 @@ KAGGLE = os.path.join(ROOT, "kaggle")
 FILES = ("attack.py", "portfolio_selector.py", "utils.py", "candidate_bank.jsonl")
 DEFAULT_OUT = os.path.join(ROOT, "dist", "agent_redteam_submission.ipynb")
 
+COMPETITION = "ai-agent-security-multi-step-tool-attacks"
+DEFAULT_KERNEL_ID = "quarkgluonmixture/agent-redteam-lab-attack"
+NOTEBOOK_FILENAME = "agent_redteam_submission.ipynb"
+
 MARKDOWN = [
     "# agent-redteam-lab — Kaggle submission\n",
     "\n",
@@ -69,9 +73,27 @@ def build_notebook() -> dict:
     }
 
 
+def kernel_metadata(kernel_id: str) -> dict:
+    """Kaggle `kernels push` spec: GPU on, internet OFF, competition data attached."""
+    return {
+        "id": kernel_id,
+        "title": kernel_id.split("/")[-1],
+        "code_file": NOTEBOOK_FILENAME,
+        "language": "python",
+        "kernel_type": "notebook",
+        "is_private": True,
+        "enable_gpu": True,          # gpt_oss/gemma need the T4
+        "enable_internet": False,    # code-competition requirement
+        "competition_sources": [COMPETITION],  # attaches aicomp_sdk + fixtures + evaluator
+        "dataset_sources": [],
+        "kernel_sources": [],
+    }
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--out", default=DEFAULT_OUT)
+    ap.add_argument("--kernel-id", default=DEFAULT_KERNEL_ID)
     args = ap.parse_args(argv)
 
     for name in FILES:
@@ -83,8 +105,21 @@ def main(argv: list[str] | None = None) -> int:
     os.makedirs(os.path.dirname(os.path.abspath(args.out)), exist_ok=True)
     with open(args.out, "w", encoding="utf-8") as fh:
         json.dump(nb, fh, indent=1)
-    print(f"build_kaggle_notebook: wrote {args.out} ({len(FILES)} files embedded). "
-          "Upload it as a Kaggle notebook.")
+
+    # push-ready folder for `kaggle kernels push -p dist/submission`
+    sub = os.path.join(os.path.dirname(os.path.abspath(args.out)), "submission")
+    os.makedirs(sub, exist_ok=True)
+    with open(os.path.join(sub, NOTEBOOK_FILENAME), "w", encoding="utf-8") as fh:
+        json.dump(nb, fh, indent=1)
+    with open(os.path.join(sub, "kernel-metadata.json"), "w", encoding="utf-8") as fh:
+        json.dump(kernel_metadata(args.kernel_id), fh, indent=1)
+
+    print(f"build_kaggle_notebook: wrote {args.out}")
+    print(f"  push-ready folder: {sub}/  (notebook + kernel-metadata.json, GPU on / internet off)")
+    print("  next (you, needs Kaggle API token):")
+    print(f"    kaggle kernels push -p {sub}")
+    print(f"    kaggle competitions submit -c {COMPETITION} "
+          f"-k {args.kernel_id} -v <VERSION> -m \"...\"")
     return 0
 
 
