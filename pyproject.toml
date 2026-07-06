@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "agent-redteam-lab"
+version = "0.1.0"
+description = "Public-safe local lab for red-teaming tool-using AI agents, with a thin Kaggle attack.py adapter."
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "MIT" }
+keywords = ["ai-security", "red-teaming", "agent-security", "llm", "kaggle", "tool-use"]
+
+# The lab itself has no runtime deps. The Kaggle adapter + local eval need the
+# competition SDK; install via the extras below.
+dependencies = []
+
+[project.optional-dependencies]
+kaggle = ["aicomp-sdk>=3.1.2"]
+dev = ["aicomp-sdk>=3.1.2", "pytest>=8"]
+
+[tool.setuptools]
+# Not a pip-installable library; keep auto-discovery from scanning kaggle/ etc.
+packages = []
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
