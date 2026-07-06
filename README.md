@@ -65,7 +65,7 @@ kaggle/                   # thin Kaggle adapter: attack.py, portfolio_selector, 
 packages/                 # the lab "brain" (Phase 3+): core, plugin-sandbox, strategies, grader, risk, replay, portfolio, sync
 scripts/                  # smoke/eval/package + public_safety_scan.py
 tests/                    # contract, bank-schema, safety-scan tests
-docs/                     # ARCHITECTURE, KAGGLE_ADAPTER_SPEC, EVAL_PROTOCOL, THREAT_MODEL, COMPETITION_RESEARCH, PUBLIC_SAFE_CHECKLIST, SYNC_FROM_UPSTREAM
+docs/                     # ARCHITECTURE, KAGGLE_ADAPTER_SPEC, EVAL_PROTOCOL, THREAT_MODEL, RISK_MODEL, COMPETITION_RESEARCH, PUBLIC_SAFE_CHECKLIST, SYNC_FROM_UPSTREAM
 ```
 
 ## Status

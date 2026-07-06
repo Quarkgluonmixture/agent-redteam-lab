@@ -88,6 +88,16 @@ failure reason.
 > confirmed findings (e.g. our 70-candidate deterministic run: 4 local delete-attempts, **0** confirmed
 > — the public guardrail blocked them). Closing that gap is the Phase-7+ job.
 
+Then feed observations back into ranking (Phase 7 — `packages/risk` + `packages/portfolio`):
+
+```bash
+python scripts/rank_candidates.py --parsed artifacts/eval_60s/parsed_candidates.jsonl \
+       --run artifacts/eval_60s/parsed_run.json --mode public_lb
+```
+
+It enriches the bank with per-candidate results, re-ranks by `risk.candidate_value` (§9.4), and
+prints the attempt-vs-confirmed reconciliation + per-strategy/predicate hit rates. See `RISK_MODEL.md`.
+
 ## 5. FP/FN (Phase 7)
 
 Our internal judge can disagree with the replay ground truth. Because the evaluator is

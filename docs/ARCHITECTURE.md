@@ -65,9 +65,9 @@ Candidate row (validated by `packages/core.validate` / mirrored `kaggle/utils.va
 | `packages/plugin_sandbox` | B | **synthetic tools + predicate evaluator + 14-scenario catalog (Phase 4)** |
 | `packages/strategies` | B | **10 candidate generators + `scripts/gen_candidates.py` (Phase 5)** |
 | `packages/grader` | A | synthetic judge calibration (stub) |
-| `packages/risk` | A | FP/FN + cost model (stub) |
+| `packages/risk` | A | **score+cost model + FP/FN reconciliation (Phase 7)** |
 | `packages/replay` | B | **artifact parser → run + per-candidate JSONL + `scripts/parse_artifacts.py` (Phase 6)** |
-| `packages/portfolio` | A | ranker/selector (stub; mirrors `kaggle/portfolio_selector.py`) |
+| `packages/portfolio` | A | **ranker/selector + replay feedback + `scripts/rank_candidates.py` (Phase 7)** |
 | `packages/sync` | A | upstream sync map + redaction (stub) |
 | `scripts/` | — | smoke/eval/package + public-safety scan |
 | `tests/` | — | contract, bank-schema, safety-scan |

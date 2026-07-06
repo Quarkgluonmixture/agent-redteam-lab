@@ -27,5 +27,8 @@ out/
 docs/_private/
 *.local.txt
 
+# --- local session state (resume notes; not shared) ---
+CHECKPOINT*.md
+
 # --- OS ---
 .DS_Store

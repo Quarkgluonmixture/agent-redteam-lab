@@ -11,7 +11,7 @@ the redaction + public-safety gate.
 | `plugin_sandbox` | synthetic tools + predicate evaluator + scenario catalog over the 10-tool surface **(Phase 4 ✓)** |
 | `strategies` | candidate generators (the strategy families in THREAT_MODEL.md) **(Phase 5 ✓)** |
 | `grader` | synthetic LLM-rubric calibration (no private examples) |
-| `risk` | FP/FN risk map + cost model |
+| `risk` | score+cost model + FP/FN reconciliation **(Phase 7 ✓)** |
 | `replay` | parse artifacts → run + per-candidate JSONL (attempt vs confirmed) **(Phase 6 ✓)** |
-| `portfolio` | candidate ranker/selector (mirrors `kaggle/portfolio_selector.py`) |
+| `portfolio` | ranker/selector + replay feedback (mirrors `kaggle/portfolio_selector.py`) **(Phase 7 ✓)** |
 | `sync` | upstream sync map + redaction transform |
