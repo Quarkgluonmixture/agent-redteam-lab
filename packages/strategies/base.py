@@ -75,8 +75,14 @@ def make_draft(
     idx: int,
     user_messages: list[str],
     notes: str = "",
+    verified_evasion: bool = False,
 ) -> AttackCandidateDraft:
-    """Build a schema-valid draft, pulling intent/sink from the scenario."""
+    """Build a schema-valid draft, pulling intent/sink from the scenario.
+
+    ``verified_evasion=True`` marks a family whose intended trace was checked locally to
+    evade the public guardrail AND fire its predicate (see THREAT_MODEL) — it ranks ahead
+    of unverified seeds so online probing tries it first.
+    """
     predicate = (scenario.expected_predicates or ["UNKNOWN"])[0]
     sev = PREDICATE_FAMILIES.get(predicate, 1)
     return AttackCandidateDraft(
@@ -89,5 +95,6 @@ def make_draft(
         expectedSink=scenario.target_tool,
         syntheticScenarioId=scenario.scenario_id,
         severityWeight=SEVERITY_WEIGHT.get(sev, 1),
+        verifiedEvasion=True if verified_evasion else None,
         notes=notes or scenario.title,
     )

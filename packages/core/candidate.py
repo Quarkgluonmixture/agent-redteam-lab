@@ -58,6 +58,11 @@ class AttackCandidateDraft:
     publicCellKey: Optional[str] = None
     coarseCellKey: Optional[str] = None
 
+    # --- guardrail intent (internal): the candidate's intended trace provably evades
+    #     the public OptimalGuardrail AND fires a predicate (checked locally). Floats
+    #     validated evasion families ahead of unverified seeds in public-LB ranking. ---
+    verifiedEvasion: Optional[bool] = None
+
     # --- per-target replay success (internal) ---
     localReplaySuccess: Optional[bool] = None
     deterministicSuccess: Optional[bool] = None

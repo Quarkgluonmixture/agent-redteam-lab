@@ -55,8 +55,12 @@ def candidate_value(row: dict) -> float:
     cross_model = sum(
         1 for k in ("deterministicSuccess", "gptOssSuccess", "gemmaSuccess") if row.get(k)
     )
+    # A locally-verified evasion (intended trace evades the public guardrail AND fires a
+    # predicate) is a stronger signal than any unverified seed → probe/ship it first.
+    verified = 100.0 if row.get("verifiedEvasion") else 0.0
     return (
-        float(weight)
+        verified
+        + float(weight)
         + 2.0 * cross_model
         - 0.001 * _replay_ms(row) / 1000.0
         - 0.002 * _total_chars(row)
