@@ -27,6 +27,11 @@ DEFAULT_KERNEL_ID = "quarkgluonmixture/agent-redteam-lab-attack"
 NOTEBOOK_FILENAME = "agent_redteam_submission.ipynb"
 # Competition-specific evaluation gateway (from the official getting-started notebook).
 GATEWAY_MODULE = "kaggle_evaluation.jed_attack_134815.jed_attack_inference_server"
+# Competition BYOD docker image with the gpt_oss/gemma GGUF models pre-baked — REQUIRED so
+# run_local_gateway() works offline (default image lacks them → HF download fails, internet is off).
+# Pinned from the official getting-started notebook's kernel-metadata.
+DOCKER_IMAGE = ("gcr.io/kaggle-private-byod/python@sha256:"
+                "57e612b484cf3df5026ee4dcc3cb176974b22b2bc0937fb1e16132a8be4cb13c")
 
 MARKDOWN = [
     "# agent-redteam-lab — Kaggle submission\n",
@@ -121,6 +126,7 @@ def kernel_metadata(kernel_id: str) -> dict:
         "is_private": True,
         "enable_gpu": True,
         "machine_shape": "NvidiaTeslaT4",  # comp requires T4 (P100 is rejected at submit)
+        "docker_image": DOCKER_IMAGE,      # models pre-baked → offline run works
         "enable_internet": False,    # code-competition requirement
         "competition_sources": [COMPETITION],  # attaches aicomp_sdk + fixtures + evaluator
         "dataset_sources": [],
