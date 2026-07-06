@@ -29,7 +29,15 @@ The contract between them is a **language-neutral JSONL candidate bank**. Only
 success flags) is **internal metadata** for local selection and is never trusted for
 scoring (the evaluator replays and recomputes — see `EVAL_PROTOCOL.md`).
 
-Candidate row (subset enforced in `kaggle/utils.py`; full shape here):
+The schema is defined once, three ways (Phase 3): **`packages/core/candidate.py`**
+(`AttackCandidateDraft` dataclass + `validate(row, max_chars=…)`), `packages/core/schema.json`
+(JSON Schema — the language-neutral artifact), and `packages/core/candidate.ts` (TS types for a
+future TS workspace). Because the Kaggle submission ships only the four `kaggle/` files, `kaggle/utils.py`
+keeps a **self-contained mirror** of the invariants, pinned equal to core by
+`tests/test_schema_consistency.py`. Tooling: `scripts/validate_candidate_bank.py` (fail-closed) and
+`scripts/export_candidate_bank.py` (merge strategy outputs → validated bank).
+
+Candidate row (validated by `packages/core.validate` / mirrored `kaggle/utils.validate_candidate`):
 
 ```jsonc
 {
@@ -53,7 +61,7 @@ Candidate row (subset enforced in `kaggle/utils.py`; full shape here):
 | Path | Layer | Status |
 |---|---|---|
 | `kaggle/` | C | scaffold (placeholder bank) |
-| `packages/core` | A/B | schema/constants home (stub) |
+| `packages/core` | A/B | **candidate schema (Phase 3): `candidate.py` + `schema.json` + `candidate.ts`** |
 | `packages/plugin-sandbox` | B | synthetic tools + scenarios (stub) |
 | `packages/strategies` | B | candidate generators (stub) |
 | `packages/grader` | A | synthetic judge calibration (stub) |

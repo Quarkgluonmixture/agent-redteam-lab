@@ -89,3 +89,11 @@ from upstream, which is recreated with **synthetic** calibration examples only.
 | `public_lb` | replay score/sec, public unique cells, short low-char chains, budget headroom | exact (wording kept) |
 | `private_transfer` | predicate + coarse-cell diversity, cross-model, stable replay | coarse (wording collapsed) |
 | `research` | interpretability, coverage, trace quality | exact |
+
+**Selection pipeline** (`kaggle/portfolio_selector.select`, Phase 3): validate (drop malformed) →
+**rank by `candidate_value`** (reads schema fields: severity weight, cross-model-success bonus, minus
+replay-cost & char penalties; `scorePerSecond` overrides when measured) → dedup (coarse for
+`private_transfer`, exact otherwise) → **cap by BOTH `max_candidates` and a replay-time budget**
+(cumulative `estimatedReplayMs` ≤ phase budget; default ≈ 72 s/candidate → ~125 fit a 9,000 s phase).
+Candidates come from a JSONL bank conforming to `packages/core/schema.json`; build/validate it with
+`scripts/export_candidate_bank.py` and `scripts/validate_candidate_bank.py`.

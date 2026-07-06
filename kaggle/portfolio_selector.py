@@ -1,14 +1,15 @@
 """Portfolio selection: turn a candidate bank into the set of findings to ship.
 
-Phase-2 scaffold: a minimal, correct-by-construction selector (dedup + limits +
-mode hooks). Real scoring-aware ranking arrives with the risk model in Phase 7;
-the heuristic weights below are stubs, documented for continuity.
+Pipeline: validate → rank (by schema fields) → dedup → cap by BOTH candidate count
+AND replay-time budget. Real risk-model weights arrive in Phase 7; the heuristic
+here reads the schema fields (severityWeight/intendedPredicate, cross-model flags,
+estimatedReplayMs, chars) rather than ad-hoc dict access.
 
 Modes (see docs/EVAL_PROTOCOL.md):
-  * ``public_lb``        — optimise replayable score/sec + public unique-cell diversity.
-  * ``private_transfer`` — optimise COARSE cell diversity + cross-model robustness;
+  * ``public_lb``        — replayable score/sec + public unique-cell diversity (exact dedup).
+  * ``private_transfer`` — COARSE cell diversity + cross-model robustness (coarse dedup);
                            must NOT overfit to the last-3-message-hash cell quirk.
-  * ``research``         — interpretability / coverage; keep everything valid.
+  * ``research``         — interpretability / coverage; keep everything valid (exact dedup).
 """
 
 from __future__ import annotations
@@ -23,11 +24,50 @@ except ImportError:  # pragma: no cover
 MODES = ("public_lb", "private_transfer", "research")
 
 
+def _severity_weight(row: dict) -> int:
+    """Weight from explicit severityWeight, else derived from the predicate."""
+    sw = row.get("severityWeight")
+    if isinstance(sw, int) and sw in utils.SEVERITY_WEIGHT.values():
+        return sw
+    sev = utils.PREDICATE_FAMILIES.get(row.get("intendedPredicate", "UNKNOWN"), 1)
+    return utils.SEVERITY_WEIGHT.get(sev, 1)
+
+
+def _replay_ms(row: dict) -> float:
+    v = row.get("estimatedReplayMs")
+    return float(v) if isinstance(v, (int, float)) and v > 0 else utils.DEFAULT_REPLAY_MS_PER_CANDIDATE
+
+
+def _total_chars(row: dict) -> int:
+    return sum(len(m) for m in row.get("userMessages", []) if isinstance(m, str))
+
+
+def candidate_value(row: dict) -> float:
+    """Ranking score for one candidate (higher = ship sooner). Reads schema fields.
+
+    Heuristic (tuned empirically in Phase 7): severity weight, a cross-model-transfer
+    bonus (matters most for the held-out private LB), minus penalties for replay cost
+    and message length. ``scorePerSecond``/``expectedScore`` override when present.
+    """
+    if isinstance(row.get("scorePerSecond"), (int, float)):
+        return float(row["scorePerSecond"]) * 1000.0  # explicit measurement wins
+    weight = _severity_weight(row)
+    cross_model = sum(
+        1 for k in ("deterministicSuccess", "gptOssSuccess", "gemmaSuccess") if row.get(k)
+    )
+    return (
+        float(weight)
+        + 2.0 * cross_model
+        - 0.001 * _replay_ms(row) / 1000.0
+        - 0.002 * _total_chars(row)
+    )
+
+
 def _coarse_key(row: dict) -> tuple:
     """Coarse cell identity for private-transfer dedup: predicate x sink x tools.
 
-    Deliberately IGNORES message wording, so trivially-reworded variants collapse
-    to one entry (the opposite of the public unique-cell farming vector).
+    Deliberately IGNORES message wording, so trivially-reworded variants collapse to
+    one entry (the opposite of the public unique-cell farming vector).
     """
     return (
         row.get("intendedPredicate", "UNKNOWN"),
@@ -46,41 +86,43 @@ def select(
     *,
     mode: str = "public_lb",
     budget_s: float = utils.DEFAULT_ATTACK_BUDGET_S,
-    max_findings: int = utils.DEFAULT_MAX_SHIPPED_CANDIDATES,
+    max_candidates: int = utils.DEFAULT_MAX_SHIPPED_CANDIDATES,
+    replay_budget_ms: float = utils.DEFAULT_REPLAY_BUDGET_MS,
 ) -> list[dict]:
-    """Return a validated, de-duplicated, capped list of candidate rows.
+    """Return a validated, ranked, de-duplicated, twice-capped list of candidate rows.
 
-    Invalid rows are dropped (this scaffold never returns malformed candidates).
-    ``budget_s`` is accepted for API stability; the scaffold does no timed search.
-    ``max_findings`` defaults to a conservative replay-time-safe cap, NOT the 2000 hard
-    limit — see the note in utils.py.
+    Caps are BOTH ``max_candidates`` (never above the 2000 hard limit) AND
+    ``replay_budget_ms`` — the portfolio stops growing once its cumulative estimated
+    replay time would exceed the phase budget, because replay time (not the count cap)
+    is what times out submissions. ``budget_s`` is accepted for API stability; the
+    scaffold does no timed exploration.
     """
     if mode not in MODES:
         raise ValueError(f"unknown mode {mode!r}; expected one of {MODES}")
 
-    # Drop malformed candidates up front — the shipped object must be replayable.
+    # 1. Drop malformed candidates — the shipped object must be replayable.
     valid = [r for r in rows if not utils.validate_candidate(r)]
 
-    # Dedup: private_transfer collapses reworded variants; others keep exact chains.
+    # 2. Rank (stable): highest value first.
+    ranked = sorted(valid, key=candidate_value, reverse=True)
+
+    # 3. Dedup: private_transfer collapses reworded variants; others keep exact chains.
     key = _coarse_key if mode == "private_transfer" else _exact_key
+    hard_cap = min(max_candidates, utils.MAX_FINDINGS_PER_RUN)
     seen: set[tuple] = set()
-    deduped: list[dict] = []
-    for r in valid:
+    out: list[dict] = []
+    spent_ms = 0.0
+    # 4. Greedy fill under both caps.
+    for r in ranked:
         k = key(r)
         if k in seen:
             continue
+        cost = _replay_ms(r)
+        if out and spent_ms + cost > replay_budget_ms:
+            break  # replay-time budget reached (ranked, so we keep the best that fit)
         seen.add(k)
-        deduped.append(r)
-
-    # Cap at the replay limit (excess would be silently dropped by the evaluator).
-    return deduped[: min(max_findings, utils.MAX_FINDINGS_PER_RUN)]
-
-
-# --- Ranking heuristic (stub, wired in Phase 7 once the risk model exists) ---
-
-def candidate_value(row: dict) -> float:
-    """Placeholder score/candidate. Real weights come from local eval artifacts."""
-    sev = utils.PREDICATE_FAMILIES.get(row.get("intendedPredicate", "UNKNOWN"), 1)
-    weight = utils.SEVERITY_WEIGHT.get(sev, 1)
-    chars = sum(len(m) for m in row.get("userMessages", []))
-    return float(weight) - 0.002 * chars
+        out.append(r)
+        spent_ms += cost
+        if len(out) >= hard_cap:
+            break
+    return out

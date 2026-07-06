@@ -38,6 +38,13 @@ BUDGET_RETURN_BUFFER_S = 60.0            # leave headroom before the phase deadl
 # portfolio. This conservative default is the selector's cap unless overridden.
 DEFAULT_MAX_SHIPPED_CANDIDATES = 200
 
+# Rough per-candidate replay cost, used by the selector to bound a portfolio by replay
+# time (the binding constraint), not just count. Derived from community datapoints
+# (public replay of N=100 ≈ 2 h ⇒ ~72 s/candidate). Override per row via estimatedReplayMs.
+DEFAULT_REPLAY_MS_PER_CANDIDATE = 72_000.0
+# Per-phase replay budget (ms). 9000 s phase, with headroom left for the buffer.
+DEFAULT_REPLAY_BUDGET_MS = PHASE_BUDGET_S * 1000.0
+
 SEED = 123                               # fixed environment seed
 TARGET_MODELS = ("gpt_oss", "gemma")     # evaluated sequentially (T4 GPU, llama.cpp GGUF)
 SUBMISSION_ROW_IDS = ("gpt_oss_public", "gpt_oss_private", "gemma_public", "gemma_private")
@@ -94,8 +101,13 @@ BUDGET_RETURN_BUFFER_S = 30.0
 REQUIRED_FIELDS = ("id", "userMessages", "strategyId", "intendedPredicate")
 
 
-def validate_candidate(row: Any) -> list[str]:
-    """Return a list of human-readable errors for one candidate row (empty == valid)."""
+def validate_candidate(row: Any, *, max_chars: int = MAX_CHARS_PER_MESSAGE) -> list[str]:
+    """Return a list of human-readable errors for one candidate row (empty == valid).
+
+    ``max_chars`` defaults to the competition limit (10,000). Pass ``LOCAL_SDK_MAX_CHARS``
+    (2,000) to validate against the stricter local wheel before a local eval.
+    Mirror of ``packages/core.validate`` — pinned by tests/test_schema_consistency.py.
+    """
     errors: list[str] = []
     if not isinstance(row, dict):
         return [f"row is not an object: {type(row).__name__}"]
@@ -113,10 +125,8 @@ def validate_candidate(row: Any) -> list[str]:
         for j, m in enumerate(msgs):
             if not isinstance(m, str):
                 errors.append(f"userMessages[{j}] is not a string")
-            elif len(m) > MAX_CHARS_PER_MESSAGE:
-                errors.append(
-                    f"userMessages[{j}] has {len(m)} chars (> {MAX_CHARS_PER_MESSAGE})"
-                )
+            elif len(m) > max_chars:
+                errors.append(f"userMessages[{j}] has {len(m)} chars (> {max_chars})")
     pred = row.get("intendedPredicate")
     if pred is not None and pred not in PREDICATE_FAMILIES:
         errors.append(f"intendedPredicate {pred!r} not in {sorted(PREDICATE_FAMILIES)}")

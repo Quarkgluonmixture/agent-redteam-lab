@@ -54,6 +54,6 @@ class AttackAlgorithm(AttackAlgorithmBase):
             rows,
             mode=self.mode,
             budget_s=budget,
-            max_findings=utils.DEFAULT_MAX_SHIPPED_CANDIDATES,
+            max_candidates=utils.DEFAULT_MAX_SHIPPED_CANDIDATES,
         )
         return utils.to_attack_candidates(selected)

@@ -73,6 +73,16 @@ aicomp evaluate redteam attack.py --budget-s 60 --agent deterministic --env gym 
 `gpt_oss` · `gemma` · `gemma_4` (local HF, heavy). `evaluate` artifacts:
 **`score.txt`, `report.json`, `transcript.log`, `framework.jsonl`, `agent-debug.jsonl`.**
 
+## Candidate bank & selection
+
+`run()` loads `candidate_bank.jsonl` (rows conforming to `packages/core/schema.json`; the adapter
+validates with `kaggle/utils.validate_candidate`, a self-contained mirror of `packages/core.validate`)
+and passes them through `kaggle/portfolio_selector.select(mode, max_candidates, replay_budget_ms)`:
+validate → rank by schema fields → dedup (coarse for `private_transfer`, exact otherwise) → cap by
+**both** count and **replay-time budget**. Only `userMessages` is shipped; all other fields are
+internal. Build/validate banks with `scripts/export_candidate_bank.py` /
+`scripts/validate_candidate_bank.py`.
+
 ## Root shim & packaging
 
 - `kaggle/attack.py` is the canonical adapter (literal `class AttackAlgorithm`); it resolves its
