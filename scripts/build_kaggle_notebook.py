@@ -52,9 +52,17 @@ SETUP_CELL = [
 ]
 
 SERVE_CELL = [
-    "# Starts the evaluation gateway; the scorer connects and drives AttackAlgorithm.run().\n",
+    "# During the hidden rerun (KAGGLE_IS_COMPETITION_RERUN set), serve() connects to the\n",
+    "# scorer's gateway. On a normal run we must drive the gateway OURSELVES via\n",
+    "# run_local_gateway(), which runs the attack against the default fixtures and writes\n",
+    "# submission.csv — the output file a submittable version must produce.\n",
+    "import os\n",
     f"import {GATEWAY_MODULE} as _srv\n",
-    "_srv.JEDAttackInferenceServer().serve()\n",
+    "_server = _srv.JEDAttackInferenceServer()\n",
+    "if os.getenv('KAGGLE_IS_COMPETITION_RERUN'):\n",
+    "    _server.serve()\n",
+    "else:\n",
+    "    _server.run_local_gateway()\n",
 ]
 
 

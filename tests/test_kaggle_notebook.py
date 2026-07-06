@@ -22,8 +22,10 @@ def test_notebook_structure():
 def test_setup_and_serve_cells_present():
     code = _all_code(bkn.build_notebook())
     assert "/kaggle/input/**/kaggle_evaluation" in code     # setup adds competition data
-    assert "JEDAttackInferenceServer().serve()" in code     # serve the gateway
     assert bkn.GATEWAY_MODULE in code
+    assert ".serve()" in code                                # rerun path
+    assert "run_local_gateway()" in code                     # local path -> writes submission.csv
+    assert "KAGGLE_IS_COMPETITION_RERUN" in code
 
 
 def test_code_cell_writes_to_kaggle_working():
