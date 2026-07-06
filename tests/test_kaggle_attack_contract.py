@@ -59,10 +59,15 @@ def test_run_accepts_env_only_call():
     assert isinstance(candidates, list)
 
 
-def test_bank_is_harmless_placeholder_only():
-    """Phase-2 guard: shipped candidates must not attempt real boundary crossings."""
+def test_shipped_candidates_are_sandbox_scoped():
+    """Phase-5: real attacks now, but every shipped candidate must stay inside the
+    authorised toy sandbox — no HTTP host outside *.invalid may appear."""
+    import re
+
     mod = _load_root_attack()
     candidates = mod.AttackAlgorithm().run(object(), AttackRunConfig(time_budget_s=5.0))
-    joined = " ".join(m.lower() for c in candidates for m in c.user_messages)
-    for banned in ("secret.txt", "http.post", "fs.delete", "exfiltrat"):
-        assert banned not in joined, f"placeholder bank unexpectedly contains {banned!r}"
+    assert candidates, "expected a non-empty candidate bank"
+    for c in candidates:
+        for m in c.user_messages:
+            for host in re.findall(r"https?://([^/\s]+)", m):
+                assert host.endswith(".invalid"), f"non-sandbox host {host!r} in a shipped candidate"

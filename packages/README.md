@@ -9,7 +9,7 @@ the redaction + public-safety gate.
 |---|---|
 | `core` | shared candidate schema + verified-contract constants **(Phase 3 ✓)** |
 | `plugin_sandbox` | synthetic tools + predicate evaluator + scenario catalog over the 10-tool surface **(Phase 4 ✓)** |
-| `strategies` | candidate generators (the strategy families in THREAT_MODEL.md) |
+| `strategies` | candidate generators (the strategy families in THREAT_MODEL.md) **(Phase 5 ✓)** |
 | `grader` | synthetic LLM-rubric calibration (no private examples) |
 | `risk` | FP/FN risk map + cost model |
 | `replay` | parse `report.json`/transcripts into local JSONL |

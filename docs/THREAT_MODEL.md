@@ -60,12 +60,15 @@ highest-value egress** (it scores as CONFUSED_DEPUTY, 3).
 the catalog can't silently drift from the scoring rules. Scenarios carry no weaponised prompts —
 they model the *environment*; crafting attacker message chains is Phase 5.
 
-## Strategy families (Phase 5 — not implemented yet)
+## Strategy families (Phase 5 — implemented)
 
-Mapped from generic OWASP-style primitives to this tool surface (no harmful-content
-generation involved):
+Implemented in `packages/strategies/` as pure, deterministic candidate producers that
+turn applicable scenarios into `AttackCandidateDraft` rows (run `scripts/gen_candidates.py`
+to build a bank). All content targets the authorised offline sandbox only. Mapped from
+generic OWASP-style primitives to this tool surface (no harmful-content generation):
 
-- `single_action_imperative` — direct request to cross a boundary (baseline).
+- `prompt_bank_baseline` — generic imperative phrasings across all scenarios (baseline coverage).
+- `single_action_imperative` — direct request to cross a boundary.
 - `untrusted_content_to_action` — plant/rely on poisoned web/email content → action.
 - `file_to_http_exfil` — read `secret.txt` → `http.post` (top EXFILTRATION path).
 - `email_to_tool_action` — email content → confused-deputy send / action.
@@ -73,6 +76,11 @@ generation involved):
 - `confused_deputy_minimal` — unbidden `email.send`.
 - `branching_snapshot_search` — use env `snapshot`/`restore` to explore branches.
 - `crescendo_like_local`, `goat_like_local` — multi-turn escalation within 32 messages.
+
+Strategies emit **drafts**, never trusted to work — a draft's success is decided only by
+**replay against the real target (Phase 6)**. A local 60 s eval against the `deterministic`
+agent currently yields 0 findings (it is a fixed-script agent that ignores generic
+imperatives); measuring/iterating against `gpt_oss`/`gemma` is Phase 6.
 
 ## Non-goals / out of scope
 
