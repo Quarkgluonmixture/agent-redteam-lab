@@ -66,7 +66,7 @@ Candidate row (validated by `packages/core.validate` / mirrored `kaggle/utils.va
 | `packages/strategies` | B | **10 candidate generators + `scripts/gen_candidates.py` (Phase 5)** |
 | `packages/grader` | A | synthetic judge calibration (stub) |
 | `packages/risk` | A | FP/FN + cost model (stub) |
-| `packages/replay` | B | artifact parsing / ingestion (stub) |
+| `packages/replay` | B | **artifact parser → run + per-candidate JSONL + `scripts/parse_artifacts.py` (Phase 6)** |
 | `packages/portfolio` | A | ranker/selector (stub; mirrors `kaggle/portfolio_selector.py`) |
 | `packages/sync` | A | upstream sync map + redaction (stub) |
 | `scripts/` | — | smoke/eval/package + public-safety scan |

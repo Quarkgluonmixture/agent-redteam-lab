@@ -68,11 +68,25 @@ bash scripts/smoke_kaggle.sh          # validate contract
 bash scripts/eval_kaggle_60s.sh       # 60s deterministic, --env gym, writes artifacts/eval_60s
 ```
 
-Parse `report.json` + `score.txt` (+ `transcript.log` / `framework.jsonl` /
-`agent-debug.jsonl`) into local JSONL for analysis (Phase 6). Track per candidate:
-intended vs observed predicate, observed tools, egress count, side-effect, public &
-coarse cell keys, per-agent success (`deterministic` / `gpt_oss` / `gemma`), replay ms,
-score/sec, failure reason.
+Then ingest the artifacts (Phase 6 — `packages/replay` + `scripts/parse_artifacts.py`):
+
+```bash
+python scripts/parse_artifacts.py artifacts/eval_60s   # -> parsed_run.json + parsed_candidates.jsonl
+```
+
+`report.json` is **run-level only** (aggregate score / `findings_count` / cells). Per-candidate
+observation is reconstructed from **`agent-debug.jsonl`**: `request_built` records carry the
+user-message preview (→ attribute turns to candidates), `decision_emitted` records carry the
+agent's tool call (→ the observed trace, scored by the Phase-4 evaluator). Per candidate we track:
+intended vs observed predicate, observed tools, egress count, per-agent success, replay ms,
+failure reason.
+
+> ⚠️ **Attempt-level vs confirmed (see §15 of the master prompt).** agent-debug records the agent's
+> *decisions*, not execution outcomes — the guardrail/env may block a decided call. So
+> `*_success` here is **attempt-level**; the AUTHORITATIVE, guardrail-confirmed result is the run's
+> `findings_count`. `parse_artifacts` prints a reconciliation line when local attempts exceed
+> confirmed findings (e.g. our 70-candidate deterministic run: 4 local delete-attempts, **0** confirmed
+> — the public guardrail blocked them). Closing that gap is the Phase-7+ job.
 
 ## 5. FP/FN (Phase 7)
 
