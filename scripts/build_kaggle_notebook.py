@@ -111,7 +111,8 @@ def kernel_metadata(kernel_id: str) -> dict:
         "language": "python",
         "kernel_type": "notebook",
         "is_private": True,
-        "enable_gpu": True,          # gpt_oss/gemma need the T4
+        "enable_gpu": True,
+        "machine_shape": "NvidiaTeslaT4",  # comp requires T4 (P100 is rejected at submit)
         "enable_internet": False,    # code-competition requirement
         "competition_sources": [COMPETITION],  # attaches aicomp_sdk + fixtures + evaluator
         "dataset_sources": [],
