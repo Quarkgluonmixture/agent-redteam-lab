@@ -14,4 +14,4 @@ the redaction + public-safety gate.
 | `risk` | score+cost model + FP/FN reconciliation **(Phase 7 ✓)** |
 | `replay` | parse artifacts → run + per-candidate JSONL (attempt vs confirmed) **(Phase 6 ✓)** |
 | `portfolio` | ranker/selector + replay feedback (mirrors `kaggle/portfolio_selector.py`) **(Phase 7 ✓)** |
-| `sync` | upstream sync map + redaction transform |
+| `sync` | upstream map + redaction transform (fail-closed) **(Phase 9 ✓)** |

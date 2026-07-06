@@ -62,13 +62,13 @@ Candidate row (validated by `packages/core.validate` / mirrored `kaggle/utils.va
 |---|---|---|
 | `kaggle/` | C | scaffold (placeholder bank) |
 | `packages/core` | A/B | **candidate schema (Phase 3): `candidate.py` + `schema.json` + `candidate.ts`** |
-| `packages/plugin_sandbox` | B | **synthetic tools + predicate evaluator + 14-scenario catalog (Phase 4)** |
+| `packages/plugin_sandbox` | B | **synthetic tools + predicate evaluator + 14-scenario catalog (Phase 4) + OptimalGuardrail model (Phase 9)** |
 | `packages/strategies` | B | **10 candidate generators + `scripts/gen_candidates.py` (Phase 5)** |
 | `packages/grader` | A | synthetic judge calibration (stub) |
 | `packages/risk` | A | **score+cost model + FP/FN reconciliation (Phase 7)** |
 | `packages/replay` | B | **artifact parser → run + per-candidate JSONL + `scripts/parse_artifacts.py` (Phase 6)** |
 | `packages/portfolio` | A | **ranker/selector + replay feedback + `scripts/rank_candidates.py` (Phase 7)** |
-| `packages/sync` | A | upstream sync map + redaction (stub) |
+| `packages/sync` | A | **upstream map + redaction + `scripts/sync_from_upstream.py` (fail-closed, Phase 9)** |
 | `scripts/` | — | smoke/eval/package + public-safety scan |
 | `tests/` | — | contract, bank-schema, safety-scan |
 

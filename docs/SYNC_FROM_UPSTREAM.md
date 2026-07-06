@@ -1,8 +1,9 @@
 # SYNC_FROM_UPSTREAM
 
 The public repo is developed independently but can pull **selected, redacted** updates
-from the private upstream project. **Never a blind copy.** (Design doc — the tooling
-lands in Phase 9; nothing here runs yet.)
+from the private upstream project. **Never a blind copy.** (Implemented in Phase 9:
+`packages/sync/{upstream_map.py,redact.py}` + `scripts/sync_from_upstream.py`; the YAML
+below is an illustrative mirror of `upstream_map.MAPPINGS`.)
 
 ## Principles
 
@@ -16,7 +17,7 @@ lands in Phase 9; nothing here runs yet.)
   agent *tool misuse*. So most "sync" is really **re-implementation of patterns** against
   the 10-tool sandbox, which conveniently keeps the harmful/company material out.
 
-## Planned pieces (Phase 9)
+## Pieces (Phase 9 — implemented)
 
 ```
 packages/sync/upstream-map.yaml     # explicit from→to mappings, include/exclude globs, transform
