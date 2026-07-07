@@ -8,7 +8,20 @@ Newest first. Scores are `normalized 0–1000` per the SDK scorer.
 
 | Sub ref | Kernel v | Date (UTC) | publicScore | privateScore | Status | Bank N |
 |---|---|---|---|---|---|---|
+| 54429706 | v9 | 2026-07-07 | ⏳ | ⏳ | PENDING | 126 (56 verified) |
 | 54424903 | v8 | 2026-07-07 | **0.390** 🎉 | (held out) | COMPLETE | 76 (6 verified vs REAL preds) |
+
+## Sub 54429706 — v9 (scale proven families for cell breadth)
+
+- **Hypothesis:** score = `Σ severity_weight + 2·distinct score-cells`; the score-cell keys on the
+  `http.post` args (url domain), so **each distinct keyword-free domain a model complies with = a fresh
+  sev-5 EXFIL cell (+16 +2)**. Scale v8's 4 exfil → **48 distinct-domain** variants + **8** distinct-recipient
+  deputy (commit `6d1a34a`). All 56 verified fire+evade vs the REAL `eval_predicates` (156 tests); ship
+  first (114 selected, under count + replay-time caps).
+- **Expected:** if compliance holds at v8's rate, ~10× → normalized single digits (elite=200000 keeps
+  absolute scores low; breadth is the game). Measures the **cell-scaling multiplier** + any replay-time /
+  compliance-saturation ceiling.
+- **Result:** _TBD (rerun pending)._
 | 54402584 | v7 | 2026-07-06 | **0.000** | (held out) | COMPLETE | 78 (5 verified) |
 
 ## Sub 54424903 — v8 (corrected families, verified vs REAL predicates)
